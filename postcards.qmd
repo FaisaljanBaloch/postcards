@@ -1,0 +1,15 @@
+---
+title: "Voting and Postcards"
+author: "Faisal Jan"
+format: html
+execute: 
+  echo: false
+---
+
+```{r}
+#| message: false
+library(tidyverse)
+library(primer.data)
+```
+
+Voter turnout in elections is often influenced by several factors, one of which is social pressure. Using the dataset of registered voters from a 2006 field experiment in Michigan, I seek to estimate the causal effect of receiving a postcard on the probability that a registered voter participates in the 2006 Michigan primary election.
