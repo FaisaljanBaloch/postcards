@@ -10,6 +10,14 @@ execute:
 #| message: false
 library(tidyverse)
 library(primer.data)
+library(tidymodels)
+library(broom)
 ```
 
-Voter turnout in elections is often influenced by several factors, one of which is social pressure. Using the dataset of registered voters from a 2006 field experiment in Michigan, I seek to estimate the causal effect of receiving a postcard on the probability that a registered voter participates in the 2006 Michigan primary election.
+Voter turnout in elections is often influenced by several factors, one of which is social pressure. Using the dataset of registered voters from a 2006 field experiment in Michigan, I seek to estimate the causal effect of receiving a postcard on the probability that a registered voter participates in the 2006 Michigan primary election. However, the data might include more politically active people which can lead to biased inference.
+
+$$
+P(Y=1) = \frac{1}{1 + e^{-(\beta_0 + \beta_1 X_1 + \beta_2 X_2 + \dots + \beta_n X_n)}}
+$$
+
+where $Y \sim \text{Bernoulli}(\rho)$ and $\rho = P(Y=1)$.

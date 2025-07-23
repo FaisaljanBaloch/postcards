@@ -36,6 +36,35 @@ ul.task-list li input[type="checkbox"] {
 <link href="postcards_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
 <link href="postcards_files/libs/bootstrap/bootstrap-bb462d781dde1847d9e3ccf7736099dd.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 </head>
 
@@ -70,7 +99,11 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<p>Voter turnout in elections is often influenced by several factors, one of which is social pressure. Using the dataset of registered voters from a 2006 field experiment in Michigan, I seek to estimate the causal effect of receiving a postcard on the probability that a registered voter participates in the 2006 Michigan primary election.</p>
+<p>Voter turnout in elections is often influenced by several factors, one of which is social pressure. Using the dataset of registered voters from a 2006 field experiment in Michigan, I seek to estimate the causal effect of receiving a postcard on the probability that a registered voter participates in the 2006 Michigan primary election. However, the data might include more politically active people which can lead to biased inference.</p>
+<p><span class="math display">\[
+P(Y=1) = \frac{1}{1 + e^{-(\beta_0 + \beta_1 X_1 + \beta_2 X_2 + \dots + \beta_n X_n)}}
+\]</span></p>
+<p>where <span class="math inline">\(Y \sim \text{Bernoulli}(\rho)\)</span> and <span class="math inline">\(\rho = P(Y=1)\)</span>.</p>
 
 </main>
 <!-- /main column -->
