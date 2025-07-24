@@ -12,12 +12,158 @@ library(tidyverse)
 library(primer.data)
 library(tidymodels)
 library(broom)
+library(gt)
+library(marginaleffects)
+library(scales)
 ```
 
-Voter turnout in elections is often influenced by several factors, one of which is social pressure. Using the dataset of registered voters from a 2006 field experiment in Michigan, I seek to estimate the causal effect of receiving a postcard on the probability that a registered voter participates in the 2006 Michigan primary election. However, the data might include more politically active people which can lead to biased inference.
+```{r}
+x <- shaming |>
+  mutate(
+    civ_engage = primary_00 +
+      primary_02 +
+      primary_04 +
+      general_00 +
+      general_02 +
+      general_04
+  ) |>
+  select(primary_06, treatment, sex, age, civ_engage) |>
+  mutate(
+    voter_class = factor(
+      case_when(
+        civ_engage %in% c(5, 6) ~ "Always Vote",
+        civ_engage %in% c(3, 4) ~ "Sometimes Vote",
+        civ_engage %in% c(1, 2) ~ "Rarely Vote"
+      ),
+      levels = c("Rarely Vote", "Sometimes Vote", "Always Vote")
+    )
+  ) |>
+  mutate(voted = as.factor(primary_06))
+```
+
+```{r}
+#| cache: true
+fit_vote <- logistic_reg(engine = "glm") |>
+  fit(voted ~ age + sex + treatment * voter_class, data = x)
+```
+
+```{r}
+plot_predictions(fit_vote, type = "prob", condition = c("treatment", "voter_class"), draw = FALSE) |>
+ggplot(aes(x = treatment, y = round(estimate, digits = 3), fill = voter_class)) +
+  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
+                position = position_dodge(width = 0.8),
+                width = 0.2,
+                color = "black") +
+  labs(
+    title = "Voting Likelihood by Postcard & Prior Vote",
+    subtitle = "Neighbors treatment boosts voting likelihood; 'Always Vote' individuals consistently higher.",
+    x = "Postcard Treatment",
+    y = "Predicted Vote Probability",
+    caption = "Source: 2006 Michigan primary."
+  ) +
+  # Format the y-axis as percentages and set limits from 0 to 1
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0, 1)) +
+  # Use a color-blind friendly palette for the voter_class groups
+  scale_fill_brewer(palette = "Dark2") + # Changed palette and now using fill for voter_class
+  # Apply a minimalist theme for a clean look, with a base font size
+  theme_minimal(base_size = 14) +
+  # Further customize the plot's appearance
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 18), # Center and bold title
+    plot.subtitle = element_text(hjust = 0.5, size = 12, margin = margin(b = 10)),
+    axis.title = element_text(face = "bold"), # Bold axis titles
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.spacing = unit(1, "lines"),
+  )
+```
+
+Voter turnout in elections is often influenced by several factors, one of which is social pressure. Using the dataset of registered voters from a 2006 field experiment in Michigan, I seek to estimate the causal effect of receiving a postcard on the probability that a registered voter participates in the 2006 Michigan primary election. However, the data might include more politically active people which can lead to biased inference. I model the voter turnout, as a logistic function of postcard treatment, voter engagement (voter class), sex, and age. The predicted probability of voting for individuals in the "Always Vote" class who received the "Neighbors" postcard treatment is approximately 55%, with an uncertainty interval ranging from about 52% to 58%.
 
 $$
 P(Y=1) = \frac{1}{1 + e^{-(\beta_0 + \beta_1 X_1 + \beta_2 X_2 + \dots + \beta_n X_n)}}
 $$
 
 where $Y \sim \text{Bernoulli}(\rho)$ and $\rho = P(Y=1)$.
+
+$$
+\begin{aligned}
+P(\widehat{\text{voted}}=1) &= \frac{1}{1 + e^{-\eta}} \\
+\text{where } \eta &= -2.434 \\
+& \quad + 0.0121 \cdot \text{age} \\
+& \quad + 0.0356 \cdot \text{sex}_{\text{Male}} \\
+& \quad + 0.0861 \cdot \text{treatment}_{\text{CivicDuty}} \\
+& \quad + 0.0707 \cdot \text{treatment}_{\text{Hawthorne}} \\
+& \quad + 0.2024 \cdot \text{treatment}_{\text{Self}} \\
+& \quad + 0.3588 \cdot \text{treatment}_{\text{Neighbors}} \\
+& \quad + 0.8197 \cdot \text{voter\_class}_{\text{SometimesVote}} \\
+& \quad + 1.6090 \cdot \text{voter\_class}_{\text{AlwaysVote}} \\
+& \quad + 0.0308 \cdot \text{treatment}_{\text{CivicDuty}} \cdot \text{voter\_class}_{\text{SometimesVote}}
+\end{aligned}
+$$
+
+```{r}
+regression_results_df <- tibble(
+  term = c(
+    "(Intercept)", "age", "sexMale", "treatmentCivic Duty",
+    "treatmentHawthorne", "treatmentSelf", "treatmentNeighbors",
+    "voter_classSometimes Vote", "voter_classAlways Vote",
+    "treatmentCivic Duty:voter_classSometimes Vote",
+    "treatmentHawthorne:voter_classSometimes Vote",
+    "treatmentSelf:voter_classSometimes Vote",
+    "treatmentNeighbors:voter_classSometimes Vote",
+    "treatmentCivic Duty:voter_classAlways Vote",
+    "treatmentHawthorne:voter_classAlways Vote",
+    "treatmentSelf:voter_classAlways Vote",
+    "treatmentNeighbors:voter_classAlways Vote"
+  ),
+  estimate = c(
+    -2.434, 0.012, 0.036, 0.086, 0.071, 0.202, 0.359,
+    0.820, 1.609, 0.031, 0.059, 0.053, 0.041, -0.051,
+    0.063, -0.006, 0.006
+  ),
+  conf.low = c(
+    -2.478, 0.012, 0.021, -0.002, -0.019, 0.118, 0.277,
+    0.78, 1.567, -0.061, -0.034, -0.036, -0.046, -0.149,
+    -0.037, -0.101, -0.087
+  ),
+  conf.high = c(
+    -2.391, 0.013, 0.05, 0.173, 0.159, 0.286, 0.44,
+    0.86, 1.651, 0.124, 0.153, 0.143, 0.128, 0.048,
+    0.163, 0.09, 0.1
+  )
+)
+
+regression_results_df |>
+  select(term, estimate, conf.low, conf.high) |>
+  mutate(
+    `95% CI` = paste0("[", round(conf.low, 3), ", ", round(conf.high, 3), "]")
+  ) |>
+  select(-conf.low, -conf.high) |>
+  gt() |>
+  cols_label(
+    term = md("**Term**"), # Use Markdown for bolding
+    estimate = md("**Estimate**")
+  ) |>
+  fmt_number(
+    columns = estimate,
+    decimals = 3
+  ) |>
+  tab_header(
+    title = md("**Regression Model Coefficients**")
+  ) |>
+  tab_source_note(
+    source_note = "Confidence intervals are 95% CIs."
+  ) |>
+  tab_options(
+    table.border.top.color = "lightgray",
+    table.border.bottom.color = "lightgray",
+    heading.background.color = "#F0F0F0",
+    column_labels.background.color = "#F0F0F0",
+    data_row.padding = px(5)
+  )
+```
